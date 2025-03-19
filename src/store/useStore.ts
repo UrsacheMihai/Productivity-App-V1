@@ -1,4 +1,3 @@
-// store.ts
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getFileContent, getFileSha, updateFileContent, decodeBase64, encodeBase64 } from './githubUtils';
@@ -46,27 +45,22 @@ interface Store {
     timetable: TimeTableEntry[];
     events: Event[];
     routines: DailyRoutine[];
-
     // Task actions
     addTask: (task: Task) => void;
     removeTask: (id: string) => void;
     toggleTask: (id: string) => void;
-
     // Timetable actions
     addTimetableEntry: (entry: TimeTableEntry) => void;
     removeTimetableEntry: (id: string) => void;
     updateTimetableEntry: (id: string, entry: Partial<TimeTableEntry>) => void;
-
     // Event actions
     addEvent: (event: Event) => void;
     removeEvent: (id: string) => void;
     updateEvent: (id: string, event: Partial<Event>) => void;
-
     // Routine actions
     addRoutine: (routine: DailyRoutine) => void;
     removeRoutine: (id: string) => void;
     toggleRoutine: (id: string) => void;
-
     // GitHub sync methods
     loadData: () => void;
     syncData: () => void;
@@ -79,17 +73,16 @@ export const useStore = create<Store>()(
             timetable: [],
             events: [],
             routines: [],
-
             // Task methods
             addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
-            removeTask: (id) => set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) })),
+            removeTask: (id) =>
+                set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) })),
             toggleTask: (id) =>
                 set((state) => ({
                     tasks: state.tasks.map((task) =>
                         task.id === id ? { ...task, completed: !task.completed } : task
                     ),
                 })),
-
             // Timetable methods
             addTimetableEntry: (entry) =>
                 set((state) => ({ timetable: [...state.timetable, entry] })),
@@ -101,9 +94,9 @@ export const useStore = create<Store>()(
                         entry.id === id ? { ...entry, ...updatedEntry } : entry
                     ),
                 })),
-
             // Event methods
-            addEvent: (event) => set((state) => ({ events: [...state.events, event] })),
+            addEvent: (event) =>
+                set((state) => ({ events: [...state.events, event] })),
             removeEvent: (id) =>
                 set((state) => ({ events: state.events.filter((event) => event.id !== id) })),
             updateEvent: (id, updatedEvent) =>
@@ -112,7 +105,6 @@ export const useStore = create<Store>()(
                         event.id === id ? { ...event, ...updatedEvent } : event
                     ),
                 })),
-
             // Routine methods
             addRoutine: (routine) =>
                 set((state) => ({ routines: [...state.routines, routine] })),
@@ -130,7 +122,6 @@ export const useStore = create<Store>()(
                             : routine
                     ),
                 })),
-
             // Load data from GitHub (data.json)
             loadData: async () => {
                 const content = await getFileContent();
@@ -149,7 +140,6 @@ export const useStore = create<Store>()(
                     }
                 }
             },
-
             // Sync current state to GitHub (update data.json)
             syncData: async () => {
                 const state = get();
@@ -159,6 +149,7 @@ export const useStore = create<Store>()(
                     events: state.events,
                     routines: state.routines,
                 };
+
                 const newDataStr = JSON.stringify(data);
                 const encodedContent = encodeBase64(newDataStr);
 
@@ -179,7 +170,7 @@ export const useStore = create<Store>()(
                 if (sha) {
                     try {
                         await updateFileContent(encodedContent, sha);
-                        console.log('Update successful');
+                        console.log('File updated successfully');
                     } catch (err) {
                         console.error('Error updating file on GitHub:', err);
                     }
