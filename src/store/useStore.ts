@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getFileContent, getFileSha, updateFileContent, decodeBase64, encodeBase64 } from './githubUtils';
+import { getFileContent, getFileSha, updateFileContent, decodeBase64, encodeBase64, commitFileChanges } from './githubUtils';
 
 // --- Type Definitions ---
 export interface Task {
@@ -170,7 +170,9 @@ export const useStore = create<Store>()(
                 if (sha) {
                     try {
                         await updateFileContent(encodedContent, sha);
-                        console.log('File updated successfully');
+                        // Commit and push changes to GitHub
+                        await commitFileChanges();
+                        console.log('File updated and changes pushed successfully');
                     } catch (err) {
                         console.error('Error updating file on GitHub:', err);
                     }

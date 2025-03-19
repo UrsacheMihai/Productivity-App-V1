@@ -3,7 +3,7 @@ import axios from 'axios';
 // === Configuration ===
 // WARNING: Hardcoding tokens is insecure.
 // This example is for personal use and testing only.
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = 'your_token_here';
 const REPO_OWNER = 'UrsacheMihai';
 const REPO_NAME = 'Productivity-App-V1';
 const FILE_PATH = 'data.json';
@@ -58,6 +58,39 @@ export const updateFileContent = async (updatedContent: string, sha: string): Pr
         );
     } catch (error) {
         console.error('Error updating file on GitHub:', error);
+    }
+};
+
+/**
+ * Commit and push the changes to GitHub.
+ */
+export const commitFileChanges = async (): Promise<void> => {
+    try {
+        await axios.post(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`,
+            {
+                message: 'Commit changes to data.json',
+                tree: 'tree_sha_here', // Get the tree SHA, depends on GitHub's current commit structure
+                parents: ['parent_commit_sha_here'], // Get parent commit SHA
+            },
+            {
+                headers: {
+                    Authorization: `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+        // Pushing the commit
+        await axios.post(
+            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${BRANCH}`,
+            {
+                sha: 'commit_sha_here', // After commit, use its SHA to push
+            },
+            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
+        );
+        console.log('Changes committed and pushed to GitHub');
+    } catch (error) {
+        console.error('Error committing and pushing to GitHub:', error);
     }
 };
 
