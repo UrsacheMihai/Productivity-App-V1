@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getFileContent, getFileSha, updateFileContent, decodeBase64, encodeBase64, commitFileChanges } from './githubUtils';
+import { syncDataToGitHub } from './githubUtils';
 
 // --- Type Definitions ---
 export interface Task {
@@ -45,24 +45,28 @@ interface Store {
     timetable: TimeTableEntry[];
     events: Event[];
     routines: DailyRoutine[];
+
     // Task actions
     addTask: (task: Task) => void;
     removeTask: (id: string) => void;
     toggleTask: (id: string) => void;
+
     // Timetable actions
     addTimetableEntry: (entry: TimeTableEntry) => void;
     removeTimetableEntry: (id: string) => void;
     updateTimetableEntry: (id: string, entry: Partial<TimeTableEntry>) => void;
+
     // Event actions
     addEvent: (event: Event) => void;
     removeEvent: (id: string) => void;
     updateEvent: (id: string, event: Partial<Event>) => void;
+
     // Routine actions
     addRoutine: (routine: DailyRoutine) => void;
     removeRoutine: (id: string) => void;
     toggleRoutine: (id: string) => void;
-    // GitHub sync methods
-    loadData: () => void;
+
+    // Sync data with GitHub
     syncData: () => void;
 }
 
@@ -73,44 +77,71 @@ export const useStore = create<Store>()(
             timetable: [],
             events: [],
             routines: [],
+
             // Task methods
-            addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
-            removeTask: (id) =>
-                set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) })),
-            toggleTask: (id) =>
+            addTask: (task) => {
+                set((state) => ({ tasks: [...state.tasks, task] }));
+                get().syncData(); // Sync data after adding task
+            },
+            removeTask: (id) => {
+                set((state) => ({ tasks: state.tasks.filter((task) => task.id !== id) }));
+                get().syncData(); // Sync data after removing task
+            },
+            toggleTask: (id) => {
                 set((state) => ({
                     tasks: state.tasks.map((task) =>
                         task.id === id ? { ...task, completed: !task.completed } : task
                     ),
-                })),
+                }));
+                get().syncData(); // Sync data after toggling task
+            },
+
             // Timetable methods
-            addTimetableEntry: (entry) =>
-                set((state) => ({ timetable: [...state.timetable, entry] })),
-            removeTimetableEntry: (id) =>
-                set((state) => ({ timetable: state.timetable.filter((entry) => entry.id !== id) })),
-            updateTimetableEntry: (id, updatedEntry) =>
+            addTimetableEntry: (entry) => {
+                set((state) => ({ timetable: [...state.timetable, entry] }));
+                get().syncData(); // Sync data after adding timetable entry
+            },
+            removeTimetableEntry: (id) => {
+                set((state) => ({ timetable: state.timetable.filter((entry) => entry.id !== id) }));
+                get().syncData(); // Sync data after removing timetable entry
+            },
+            updateTimetableEntry: (id, updatedEntry) => {
                 set((state) => ({
                     timetable: state.timetable.map((entry) =>
                         entry.id === id ? { ...entry, ...updatedEntry } : entry
                     ),
-                })),
+                }));
+                get().syncData(); // Sync data after updating timetable entry
+            },
+
             // Event methods
-            addEvent: (event) =>
-                set((state) => ({ events: [...state.events, event] })),
-            removeEvent: (id) =>
-                set((state) => ({ events: state.events.filter((event) => event.id !== id) })),
-            updateEvent: (id, updatedEvent) =>
+            addEvent: (event) => {
+                set((state) => ({ events: [...state.events, event] }));
+                get().syncData(); // Sync data after adding event
+            },
+            removeEvent: (id) => {
+                set((state) => ({ events: state.events.filter((event) => event.id !== id) }));
+                get().syncData(); // Sync data after removing event
+            },
+            updateEvent: (id, updatedEvent) => {
                 set((state) => ({
                     events: state.events.map((event) =>
                         event.id === id ? { ...event, ...updatedEvent } : event
                     ),
-                })),
+                }));
+                get().syncData(); // Sync data after updating event
+            },
+
             // Routine methods
-            addRoutine: (routine) =>
-                set((state) => ({ routines: [...state.routines, routine] })),
-            removeRoutine: (id) =>
-                set((state) => ({ routines: state.routines.filter((routine) => routine.id !== id) })),
-            toggleRoutine: (id) =>
+            addRoutine: (routine) => {
+                set((state) => ({ routines: [...state.routines, routine] }));
+                get().syncData(); // Sync data after adding routine
+            },
+            removeRoutine: (id) => {
+                set((state) => ({ routines: state.routines.filter((routine) => routine.id !== id) }));
+                get().syncData(); // Sync data after removing routine
+            },
+            toggleRoutine: (id) => {
                 set((state) => ({
                     routines: state.routines.map((routine) =>
                         routine.id === id
@@ -121,26 +152,11 @@ export const useStore = create<Store>()(
                             }
                             : routine
                     ),
-                })),
-            // Load data from GitHub (data.json)
-            loadData: async () => {
-                const content = await getFileContent();
-                if (content) {
-                    try {
-                        const decoded = decodeBase64(content);
-                        const jsonData = JSON.parse(decoded);
-                        set({
-                            tasks: jsonData.tasks || [],
-                            timetable: jsonData.timetable || [],
-                            events: jsonData.events || [],
-                            routines: jsonData.routines || [],
-                        });
-                    } catch (err) {
-                        console.error('Error parsing GitHub JSON data:', err);
-                    }
-                }
+                }));
+                get().syncData(); // Sync data after toggling routine
             },
-            // Sync current state to GitHub (update data.json)
+
+            // GitHub sync method
             syncData: async () => {
                 const state = get();
                 const data = {
@@ -150,35 +166,8 @@ export const useStore = create<Store>()(
                     routines: state.routines,
                 };
 
-                const newDataStr = JSON.stringify(data);
-                const encodedContent = encodeBase64(newDataStr);
-
-                // Fetch current content from GitHub to compare
-                const currentContentBase64 = await getFileContent();
-                if (currentContentBase64) {
-                    const currentContent = decodeBase64(currentContentBase64);
-
-                    // If current content is the same as new data, skip update
-                    if (currentContent === newDataStr) {
-                        console.log('No changes detected. Skipping update.');
-                        return;
-                    }
-                }
-
-                // Get the current SHA of the file
-                const sha = await getFileSha();
-                if (sha) {
-                    try {
-                        await updateFileContent(encodedContent, sha);
-                        // Commit and push changes to GitHub
-                        await commitFileChanges();
-                        console.log('File updated and changes pushed successfully');
-                    } catch (err) {
-                        console.error('Error updating file on GitHub:', err);
-                    }
-                } else {
-                    console.error('Could not fetch file SHA; sync aborted.');
-                }
+                // Sync the data with GitHub
+                await syncDataToGitHub(data);
             },
         }),
         { name: 'productivity-storage' }

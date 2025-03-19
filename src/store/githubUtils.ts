@@ -1,13 +1,11 @@
 import axios from 'axios';
 
 // === Configuration ===
-// WARNING: Hardcoding tokens is insecure.
-// This example is for personal use and testing only.
-const GITHUB_TOKEN = 'your_token_here';
-const REPO_OWNER = 'UrsacheMihai';
-const REPO_NAME = 'Productivity-App-V1';
+const GITHUB_TOKEN = 'your_token_here'; // Replace with your GitHub token
+const REPO_OWNER = 'UrsacheMihai'; // Replace with your GitHub username
+const REPO_NAME = 'Productivity-App-V1'; // Replace with your repository name
 const FILE_PATH = 'data.json';
-const BRANCH = 'master'; // Using branch "master" per request
+const BRANCH = 'master'; // Branch name (can be 'main' or 'master' based on your setup)
 
 /**
  * Fetch the JSON file content from GitHub (base64 encoded).
@@ -18,7 +16,7 @@ export const getFileContent = async (): Promise<string | null> => {
             `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`,
             { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
         );
-        return res.data.content; // base64 encoded
+        return res.data.content; // base64 encoded content
     } catch (error) {
         console.error('Error fetching file content from GitHub:', error);
         return null;
@@ -34,7 +32,7 @@ export const getFileSha = async (): Promise<string | null> => {
             `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}?ref=${BRANCH}`,
             { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
         );
-        return res.data.sha;
+        return res.data.sha; // SHA of the file
     } catch (error) {
         console.error('Error fetching file SHA from GitHub:', error);
         return null;
@@ -62,35 +60,43 @@ export const updateFileContent = async (updatedContent: string, sha: string): Pr
 };
 
 /**
- * Commit and push the changes to GitHub.
+ * Encode a UTF-8 string to base64.
  */
-export const commitFileChanges = async (): Promise<void> => {
+export const encodeBase64 = (str: string): string => {
+    return window.btoa(unescape(encodeURIComponent(str)));
+};
+
+/**
+ * Sync local changes to GitHub: This function detects changes and pushes updates.
+ */
+export const syncDataToGitHub = async (localData: any): Promise<void> => {
     try {
-        await axios.post(
-            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`,
-            {
-                message: 'Commit changes to data.json',
-                tree: 'tree_sha_here', // Get the tree SHA, depends on GitHub's current commit structure
-                parents: ['parent_commit_sha_here'], // Get parent commit SHA
-            },
-            {
-                headers: {
-                    Authorization: `token ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-        // Pushing the commit
-        await axios.post(
-            `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${BRANCH}`,
-            {
-                sha: 'commit_sha_here', // After commit, use its SHA to push
-            },
-            { headers: { Authorization: `token ${GITHUB_TOKEN}` } }
-        );
-        console.log('Changes committed and pushed to GitHub');
+        // Step 1: Get the current file content and SHA from GitHub
+        const currentContentBase64 = await getFileContent();
+        const currentSha = await getFileSha();
+
+        if (!currentContentBase64 || !currentSha) {
+            console.error('Failed to fetch file content or SHA.');
+            return;
+        }
+
+        // Step 2: Decode current content and compare it to the local data
+        const currentContent = decodeBase64(currentContentBase64);
+        const newContentStr = JSON.stringify(localData);
+
+        // Step 3: Check if the content has changed
+        if (currentContent === newContentStr) {
+            console.log('No changes detected. Skipping update.');
+            return;
+        }
+
+        // Step 4: If content has changed, encode the new data and update the file on GitHub
+        const encodedContent = encodeBase64(newContentStr);
+        await updateFileContent(encodedContent, currentSha);
+
+        console.log('File updated and changes pushed successfully!');
     } catch (error) {
-        console.error('Error committing and pushing to GitHub:', error);
+        console.error('Error syncing data to GitHub:', error);
     }
 };
 
@@ -99,11 +105,4 @@ export const commitFileChanges = async (): Promise<void> => {
  */
 export const decodeBase64 = (base64Str: string): string => {
     return decodeURIComponent(escape(window.atob(base64Str)));
-};
-
-/**
- * Encode a UTF-8 string to base64.
- */
-export const encodeBase64 = (str: string): string => {
-    return window.btoa(unescape(encodeURIComponent(str)));
 };
