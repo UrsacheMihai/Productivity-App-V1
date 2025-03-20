@@ -1,75 +1,64 @@
-import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom'; // Changed here to HashRouter
-import { Clock } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import TodoList from './pages/TodoList';
-import Scheduler from './pages/Scheduler';
+import Schedule from './pages/Schedule';
+import AuthForm from './components/AuthForm';
+import { useStore } from './lib/store';
+import { useTheme } from './lib/theme';
 
 function App() {
-  return (
-      <Router>
-        <div className="min-h-screen bg-gray-900 text-white">
-          {/* Particle wave animation background */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 to-purple-900/20" />
-          </div>
+  const { user, initAuth } = useStore();
+  const { isDark } = useTheme();
 
-          {/* Navigation */}
-          <nav className="relative bg-blue-900/80 backdrop-blur-sm shadow-lg">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="flex items-center justify-between h-16">
-                <div className="flex items-center space-x-8">
-                  <Link
-                      to="/"
-                      className="text-white font-semibold text-lg flex items-center space-x-2"
-                  >
-                    <Clock className="h-6 w-6" />
-                    <span>Scheduler</span>
-                  </Link>
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
-                  <div className="flex space-x-4">
-                    <Link
-                        to="/"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition"
-                    >
-                      Home
-                    </Link>
-                    <Link
-                        to="/todo"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition"
-                    >
-                      TO-DO List
-                    </Link>
-                    <Link
-                        to="/scheduler"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition"
-                    >
-                      Scheduler
-                    </Link>
-                  </div>
-                </div>
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [isDark]);
 
-                <div className="text-sm font-medium">
-                  {new Date().toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </div>
-              </div>
-            </div>
-          </nav>
-
-          {/* Main content */}
-          <main className="relative max-w-7xl mx-auto px-4 py-8">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/todo" element={<TodoList />} />
-              <Route path="/scheduler" element={<Scheduler />} />
-            </Routes>
-          </main>
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
+        <div className="bg-card p-8 rounded-lg shadow-lg w-full max-w-md border border-border">
+          <h1 className="text-2xl font-bold mb-6 text-center text-foreground">Welcome Back</h1>
+          <p className="text-muted-foreground text-center mb-8">
+            Sign in to access your productivity dashboard
+          </p>
+          <AuthForm />
         </div>
-      </Router>
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <div className="min-h-screen bg-background text-foreground">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/todos" element={<TodoList />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Toaster 
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: isDark ? 'hsl(var(--card))' : '#fff',
+              color: isDark ? 'hsl(var(--foreground))' : '#000',
+              border: '1px solid hsl(var(--border))',
+            },
+          }}
+        />
+      </div>
+    </Router>
   );
 }
 
